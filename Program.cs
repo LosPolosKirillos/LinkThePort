@@ -7,6 +7,7 @@ using System.IO;
 using System.Security.Policy;
 using System.Threading;
 using System.Runtime.Serialization.Formatters;
+using System.Diagnostics.Eventing.Reader;
 
 namespace LinkThePort
 {
@@ -16,11 +17,13 @@ namespace LinkThePort
         {
             Random random = new Random();
             ConsoleColor defaultBackColor = Console.BackgroundColor;
+            ConsoleColor defaultForeColor = Console.ForegroundColor;
             ConsoleKeyInfo key = new ConsoleKeyInfo('g', ConsoleKey.G, false, false, false);
+            int fuel = random.Next(20, 40);
             int[] deliveryPoint;
             int[,] ports;
             char[,] map = ReadMap("world_map.txt", out ports);
-            deliveryPoint = ChooseDeliveryCoordinates(map); 
+            deliveryPoint = ChooseDeliveryCoordinates(map);
 
             int startPortIndex = random.Next(0, ports.GetLength(0));
             int shipX = ports[startPortIndex, 0];
@@ -34,12 +37,13 @@ namespace LinkThePort
                 Console.SetCursorPosition(0, 0);
                 Console.Clear();
                 DrawMap(map);
+                DrawActivePorts(ports, defaultBackColor);
 
                 Console.SetCursorPosition(deliveryPoint[0], deliveryPoint[1]);
-                Console.BackgroundColor = ConsoleColor.DarkGreen;
+                Console.BackgroundColor = ConsoleColor.DarkMagenta;
                 Console.Write('D');
 
-                MoveShip(key, ref shipX, ref shipY, map, deliveryPoint);
+                MoveShip(key, ref shipX, ref shipY, map, deliveryPoint, ref fuel);
 
                 Console.SetCursorPosition(shipX, shipY);
                 Console.BackgroundColor = ConsoleColor.DarkYellow;
@@ -47,21 +51,103 @@ namespace LinkThePort
 
                 Console.BackgroundColor = defaultBackColor;
 
+                if (IsInActivePort(shipX, shipY, map, ref ports))
+                    fuel += random.Next(20, 40);
+
+                drawDownBoard(defaultBackColor, defaultForeColor, map, fuel);
+
                 Console.CursorVisible = false;
 
                 if (deliveryPoint[0] == shipX && deliveryPoint[1] == shipY)
+                    break;
+                else if (fuel == 0)
                     break;
 
                 key = Console.ReadKey();
             }
 
-            Console.SetCursorPosition(0, map.GetLength(1) + 1);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Success! ");
-            Console.ForegroundColor = ConsoleColor.White;
+            if (fuel > 0)
+            {
+                Console.SetCursorPosition(0, map.GetLength(1) + 1);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Success! ");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+            else
+            {
+                Console.SetCursorPosition(0, map.GetLength(1) + 1);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Fail! ");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
         }
 
-        private static void MoveShip(ConsoleKeyInfo key, ref int shipX, ref int shipY, char[,] map, int[] dPoint)
+        private static void drawDownBoard(ConsoleColor defaultBackColor, ConsoleColor defaultForeColor, char[,] map, int fuel)
+        {
+            Console.SetCursorPosition(0, map.GetLength(1));
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"--- Fuel: {fuel} --- | '");
+            Console.ForegroundColor = defaultForeColor;
+            Console.BackgroundColor = ConsoleColor.DarkGreen;
+            Console.Write("o");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.BackgroundColor = defaultBackColor;
+            Console.Write("' - Active port  | '");
+            Console.ForegroundColor = defaultForeColor;
+            Console.BackgroundColor = ConsoleColor.DarkRed;
+            Console.Write("o");
+            Console.BackgroundColor = defaultBackColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("' - Visited port  | '");
+            Console.ForegroundColor = defaultForeColor;
+            Console.BackgroundColor = ConsoleColor.DarkYellow;
+            Console.Write("S");
+            Console.BackgroundColor = defaultBackColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("' - Your transport (ship)  | '");
+            Console.ForegroundColor = defaultForeColor;
+            Console.BackgroundColor = ConsoleColor.DarkMagenta;
+            Console.Write("D");
+            Console.BackgroundColor = defaultBackColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("' - Delivery point");
+            Console.ForegroundColor = defaultForeColor;
+        }
+        private static bool IsInActivePort(int x, int y, char[,] map, ref int[,] ports)
+        {
+            for (int i = 0; i < ports.GetLength(0); i++)
+                for (int j = 0; j < ports.GetLength(1); j++)
+                    if (ports[i, j] == x && ports[i, j + 1] == y)
+                        if (ports[i, j] == 0 && ports[i, j + 1] == 0)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            ports = ChangeWidthOfList(ports, x, y, false);
+                            return true;
+                        }
+
+            return false;
+        }
+
+        private static void DrawActivePorts(int[,] ports, ConsoleColor defaultColor)
+        {
+            for (int i = 0; i < ports.GetLength(0); i++)
+            {
+                if (ports[i, 0] == 0 && ports[i, 1] == 0)
+                {
+                    continue;
+                }
+                else 
+                {
+                    Console.SetCursorPosition(ports[i, 0], ports[i, 1]);
+                    Console.BackgroundColor = ConsoleColor.DarkGreen;
+                    Console.Write('o');
+                }
+            }
+        }
+        private static void MoveShip(ConsoleKeyInfo key, ref int shipX, ref int shipY, char[,] map, int[] dPoint, ref int fuel)
         {
             int[] direction = GetDirection(key);
 
@@ -71,6 +157,7 @@ namespace LinkThePort
             {
                 shipX += direction[0];
                 shipY += direction[1];
+                fuel--;
             }
         }
 
@@ -116,7 +203,7 @@ namespace LinkThePort
             return pointCoordinates;
 
         }
-        
+
         private static void DrawMap(char[,] map)
         {
             Console.SetCursorPosition(0, 0);
@@ -152,26 +239,63 @@ namespace LinkThePort
                     map[x, y] = file[y][x];
                     if (map[x, y] == 'o')
                     {
-                        EnlargeList(ref cors, x, y);
+                        cors = ChangeWidthOfList(cors, x, y);
                     }
                 }
 
             return map;
         }
 
-        private static int[,] EnlargeList(ref int[,] list, int x, int y)
+        private static int[,] ChangeWidthOfList(int[,] list, int x, int y, bool enlargeList = true)
         {
-            int[,] tempList = new int[list.GetLength(0) + 1, 2];
+            if (enlargeList)
+            {
+                int[,] tempList = new int[list.GetLength(0) + 1, 2];
 
-            for (int i = 0; i < list.GetLength(0); i++)
-                for (int j = 0; j < list.GetLength(1); j++)
-                    tempList[i, j] = list[i, j];
+                for (int i = 0; i < list.GetLength(0); i++)
+                    for (int j = 0; j < list.GetLength(1); j++)
+                        tempList[i, j] = list[i, j];
 
-            tempList[tempList.GetLength(0) - 1, 0] = x; tempList[tempList.GetLength(0) - 1, 1] = y;
+                tempList[tempList.GetLength(0) - 1, 0] = x; tempList[tempList.GetLength(0) - 1, 1] = y;
 
-            list = tempList;
+                list = tempList;
 
-            return list;
+                return list;
+            }
+            else
+            {
+                int[,] tempList = new int[list.GetLength(0), 2];
+
+                for (int i = 0; i < list.GetLength(0); i++)
+                    for (int j = 0; j < list.GetLength(1); j++)
+                        if (j != 1)
+                        {
+                            if (list[i, j] == x && list[i, j + 1] == y)
+                            {
+                                tempList[i, j] = 0;
+                            }
+                            else
+                            {
+                                tempList[i, j] = list[i, j];
+                            }
+                        }
+                        else
+                        {
+                            if (list[i, j] == y && list[i, j - 1] == x)
+                            {
+                                tempList[i, j] = 0;
+                            }
+                            else
+                            {
+                                tempList[i, j] = list[i, j];
+                            }
+                        }
+
+
+                list = tempList;
+
+                return list;
+            }
         }
 
         private static int GetMaxLengthOfLine(string[] lines)
