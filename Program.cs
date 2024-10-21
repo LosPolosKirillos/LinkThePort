@@ -24,7 +24,8 @@ namespace LinkThePort
                 int fuel = random.Next(20, 40);
                 int[] deliveryPoint;
                 int[,] ports;
-                char[,] map = ReadMap("world_map.txt", out ports);
+                int[,] piratesZone;
+                char[,] map = ReadMap("world_map.txt", out ports, out piratesZone);
                 deliveryPoint = ChooseDeliveryCoordinates(map);
 
                 int startPortIndex = random.Next(0, ports.GetLength(0));
@@ -40,6 +41,7 @@ namespace LinkThePort
                     Console.Clear();
                     DrawMap(map);
                     DrawActivePorts(ports, defaultBackColor);
+                    DrawPiratesZone(piratesZone, defaultForeColor);
 
                     Console.SetCursorPosition(deliveryPoint[0], deliveryPoint[1]);
                     Console.BackgroundColor = ConsoleColor.DarkMagenta;
@@ -55,8 +57,16 @@ namespace LinkThePort
 
                     if (IsInActivePort(shipX, shipY, map, ref ports))
                         fuel += random.Next(20, 40);
+                    else if (IsInPiratesZone(shipX, shipY, piratesZone))
+                        if (random.Next(1, 40) == 1)
+                        {
+                            Console.SetCursorPosition(6, map.GetLength(1) + 1);
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write("Pirate's attack! ");
+                            fuel = 0;
+                        }
 
-                    drawDownBoard(defaultBackColor, defaultForeColor, map, fuel);
+                    DrawDownBoard(defaultBackColor, defaultForeColor, map, fuel);
 
                     Console.CursorVisible = false;
 
@@ -99,7 +109,7 @@ namespace LinkThePort
             }
         }
 
-        private static void drawDownBoard(ConsoleColor defaultBackColor, ConsoleColor defaultForeColor, char[,] map, int fuel)
+        private static void DrawDownBoard(ConsoleColor defaultBackColor, ConsoleColor defaultForeColor, char[,] map, int fuel)
         {
             Console.SetCursorPosition(0, map.GetLength(1));
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -127,9 +137,24 @@ namespace LinkThePort
             Console.Write("D");
             Console.BackgroundColor = defaultBackColor;
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write("' - Delivery point");
+            Console.Write("' - Delivery point  | '");
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            Console.Write("_");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("' - Pirate's activity zone (risk of fuel loss)");
             Console.ForegroundColor = defaultForeColor;
         }
+        
+        private static bool IsInPiratesZone(int x, int y, int[,] zone)
+        {
+            for (int i = 0; i < zone.GetLength(0); i++)
+                for (int j = 0; j < zone.GetLength(1); j += 2)
+                    if (zone[i, j] == x && zone[i, j + 1] == y)
+                        return true;
+
+            return false;
+        }
+
         private static bool IsInActivePort(int x, int y, char[,] map, ref int[,] ports)
         {
             for (int i = 0; i < ports.GetLength(0); i++)
@@ -163,6 +188,20 @@ namespace LinkThePort
                     Console.Write('o');
                 }
             }
+
+            Console.BackgroundColor = defaultColor;
+        }
+        private static void DrawPiratesZone(int[,] zoneCors, ConsoleColor defaultColor)
+        {
+            for (int i = 0; i < zoneCors.GetLength(0); i++)
+                for (int j = 0; j < zoneCors.GetLength(1); j += 2)
+                {
+                    Console.SetCursorPosition(zoneCors[i, j], zoneCors[i, j + 1]);
+                    Console.ForegroundColor = ConsoleColor.DarkBlue;
+                    Console.Write('_');
+                }
+
+            Console.ForegroundColor = defaultColor;
         }
         private static void MoveShip(ConsoleKeyInfo key, ref int shipX, ref int shipY, char[,] map, int[] dPoint, ref int fuel)
         {
@@ -243,12 +282,13 @@ namespace LinkThePort
             }
         }
 
-        private static char[,] ReadMap(string path, out int[,] cors)
+        private static char[,] ReadMap(string path, out int[,] corsOfPorts, out int[,] corsOfPirates)
         {
             string[] file = File.ReadAllLines(path);
 
             char[,] map = new char[GetMaxLengthOfLine(file), file.Length];
-            cors = new int[0, 0];
+            corsOfPorts = new int[0, 0];
+            corsOfPirates = new int[0, 0];
 
             for (int x = 0; x < map.GetLength(0); x++)
                 for (int y = 0; y < map.GetLength(1); y++)
@@ -256,7 +296,12 @@ namespace LinkThePort
                     map[x, y] = file[y][x];
                     if (map[x, y] == 'o')
                     {
-                        cors = ChangeWidthOfList(cors, x, y);
+                        corsOfPorts = ChangeWidthOfList(corsOfPorts, x, y);
+                    }
+                    else if (map[x, y] == 'P')
+                    {
+                        corsOfPirates = ChangeWidthOfList(corsOfPirates, x, y);
+                        map[x, y] = ' ';
                     }
                 }
 
