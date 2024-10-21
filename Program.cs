@@ -15,70 +15,87 @@ namespace LinkThePort
     {
         static void Main(string[] args)
         {
-            Random random = new Random();
-            ConsoleColor defaultBackColor = Console.BackgroundColor;
-            ConsoleColor defaultForeColor = Console.ForegroundColor;
-            ConsoleKeyInfo key = new ConsoleKeyInfo('g', ConsoleKey.G, false, false, false);
-            int fuel = random.Next(20, 40);
-            int[] deliveryPoint;
-            int[,] ports;
-            char[,] map = ReadMap("world_map.txt", out ports);
-            deliveryPoint = ChooseDeliveryCoordinates(map);
-
-            int startPortIndex = random.Next(0, ports.GetLength(0));
-            int shipX = ports[startPortIndex, 0];
-            int shipY = ports[startPortIndex, 1];
-
             while (true)
             {
-                Console.BufferHeight = 1000;
-                Console.BufferWidth = 1000;
+                Random random = new Random();
+                ConsoleColor defaultBackColor = Console.BackgroundColor;
+                ConsoleColor defaultForeColor = Console.ForegroundColor;
+                ConsoleKeyInfo key = new ConsoleKeyInfo('g', ConsoleKey.G, false, false, false);
+                int fuel = random.Next(20, 40);
+                int[] deliveryPoint;
+                int[,] ports;
+                char[,] map = ReadMap("world_map.txt", out ports);
+                deliveryPoint = ChooseDeliveryCoordinates(map);
 
-                Console.SetCursorPosition(0, 0);
-                Console.Clear();
-                DrawMap(map);
-                DrawActivePorts(ports, defaultBackColor);
+                int startPortIndex = random.Next(0, ports.GetLength(0));
+                int shipX = ports[startPortIndex, 0];
+                int shipY = ports[startPortIndex, 1];
 
-                Console.SetCursorPosition(deliveryPoint[0], deliveryPoint[1]);
-                Console.BackgroundColor = ConsoleColor.DarkMagenta;
-                Console.Write('D');
+                while (true)
+                {
+                    Console.BufferHeight = 1000;
+                    Console.BufferWidth = 1000;
 
-                MoveShip(key, ref shipX, ref shipY, map, deliveryPoint, ref fuel);
+                    Console.SetCursorPosition(0, 0);
+                    Console.Clear();
+                    DrawMap(map);
+                    DrawActivePorts(ports, defaultBackColor);
 
-                Console.SetCursorPosition(shipX, shipY);
-                Console.BackgroundColor = ConsoleColor.DarkYellow;
-                Console.Write('S');
+                    Console.SetCursorPosition(deliveryPoint[0], deliveryPoint[1]);
+                    Console.BackgroundColor = ConsoleColor.DarkMagenta;
+                    Console.Write('D');
 
-                Console.BackgroundColor = defaultBackColor;
+                    MoveShip(key, ref shipX, ref shipY, map, deliveryPoint, ref fuel);
 
-                if (IsInActivePort(shipX, shipY, map, ref ports))
-                    fuel += random.Next(20, 40);
+                    Console.SetCursorPosition(shipX, shipY);
+                    Console.BackgroundColor = ConsoleColor.DarkYellow;
+                    Console.Write('S');
 
-                drawDownBoard(defaultBackColor, defaultForeColor, map, fuel);
+                    Console.BackgroundColor = defaultBackColor;
 
-                Console.CursorVisible = false;
+                    if (IsInActivePort(shipX, shipY, map, ref ports))
+                        fuel += random.Next(20, 40);
 
-                if (deliveryPoint[0] == shipX && deliveryPoint[1] == shipY)
+                    drawDownBoard(defaultBackColor, defaultForeColor, map, fuel);
+
+                    Console.CursorVisible = false;
+
+                    if (deliveryPoint[0] == shipX && deliveryPoint[1] == shipY)
+                        break;
+                    else if (fuel == 0)
+                        break;
+
+                    key = Console.ReadKey();
+                }
+
+                if (fuel > 0)
+                {
+                    Console.SetCursorPosition(0, map.GetLength(1) + 1);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("Success! \n");
+                    Console.ForegroundColor = defaultForeColor;
+                }
+                else
+                {
+                    Console.SetCursorPosition(0, map.GetLength(1) + 1);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("Fail! \n");
+                    Console.ForegroundColor = defaultForeColor;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("--- Do you wanna play again?(write 'yes' if you do) ---");
+                if (Console.ReadLine() == "yes")
+                {
+                    Console.ForegroundColor = defaultForeColor;
+                    continue;
+                }
+                else
+                {
+                    Console.ForegroundColor = defaultForeColor;
+                    Console.Clear();
                     break;
-                else if (fuel == 0)
-                    break;
-
-                key = Console.ReadKey();
-            }
-
-            if (fuel > 0)
-            {
-                Console.SetCursorPosition(0, map.GetLength(1) + 1);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Success! ");
-                Console.ForegroundColor = ConsoleColor.White;
-            }
-            else
-            {
-                Console.SetCursorPosition(0, map.GetLength(1) + 1);
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("Fail! ");
-                Console.ForegroundColor = ConsoleColor.White;
+                }
             }
         }
 
@@ -139,7 +156,7 @@ namespace LinkThePort
                 {
                     continue;
                 }
-                else 
+                else
                 {
                     Console.SetCursorPosition(ports[i, 0], ports[i, 1]);
                     Console.BackgroundColor = ConsoleColor.DarkGreen;
